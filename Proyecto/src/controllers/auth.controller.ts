@@ -34,3 +34,18 @@ export const getTimeToken = (req: Request, res: Response) => {
 
   return res.json({ timeToLife, expTime });
 };
+
+export const updateToken = (req: Request, res: Response) => {
+  const { userId } = req.params;
+
+  const ttl = cache.getTtl(userId); // ⚠️ key sensible a mayúsculas
+
+
+  if (!ttl){
+    return res.status(404).json({ message: "Token no existe" });
+  }
+  const newTImeTll: number = 60 * 15; // 15 minutos
+  cache.ttl(userId, newTImeTll); // Actualiza el TTL del token
+
+  return res.json({ message: "Token actualizado" });
+}
