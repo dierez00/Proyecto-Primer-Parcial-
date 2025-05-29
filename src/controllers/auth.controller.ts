@@ -4,6 +4,7 @@ import NodeCache from "node-cache";
 import { cache } from "../utils/cache"; // Este debe ser una instancia compartida
 import dayjs from "dayjs"; // era incorrecto usar `import {days}`
 import { User } from "../models/User";
+import bcrypt from 'bcrypt';
 
 export const login = (req: Request, res: Response) => {
   const { username, password } = req.body;
@@ -66,25 +67,57 @@ export const getAllUsers = async (req: Request, res: Response ) =>{
 }
 
 export const saveUsers = async (req: Request, res: Response) => {
- try{ 
-  const { name2, email, password, role, phone } = req.body;
+  try {
+    const { name2, email, password, role, phone } = req.body;
 
-  const newUser= new User({
-    name: name2,
-    email,
-    password,
-    role,
-    phone,
-    createDate: Date.now(),
-    status: true,
-     });
+    // Encriptar la contraseña
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-     const user = await newUser.save();
+    const newUser = new User({
+      name: name2,
+      email,
+      password: hashedPassword,  // Guardar la contraseña encriptada
+      role,
+      phone,
+      createDate: Date.now(),
+      status: true,
+    });
 
-     return res.json({ user });
-    } catch (error) {
+    const user = await newUser.save();
+
+    return res.json({ user });
+  } catch (error) {
     console.log("Error al guardar el usuario:", error);
-    return res.status(426).json({error});
+    return res.status(426).json({ error });
   }
+};
+
+export const updateUser = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, password, role, phone } = req.body;
+
+    // Buscar el usuario
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    // Actualizar campos si están presentes
+    if (name) user.name = name;
+    if (role) user.role = role;
+    if (phone) user.phone = phone;
+    if (password) {
+      const saltRounds = 10;
+      user.password = await bcrypt.hash(password, saltRounds);
+    }
+
+    const updatedUser = await user.save();
+    return res.json({ user: updatedUser });
     
-  } 
+  } catch (error) {
+    console.error('Error al actualizar el usuario:', error);
+    return res.status(500).json({ error: 'Error al actualizar el usuario' });
+  }
+};
