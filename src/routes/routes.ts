@@ -1,5 +1,5 @@
 import express from 'express';
-import { login, getTimeToken, updateToken, getAllUsers, saveUsers, updateUser } from '../controllers/auth.controller';
+import { login, getTimeToken, updateToken, getAllUsers, saveUsers, updateUser, deleteUser } from '../controllers/auth.controller';
 
 const routes = express.Router();
 
@@ -8,6 +8,7 @@ routes.get('/getTimeToken', getTimeToken as express.RequestHandler);
 routes.patch('/updateToken/:userId', updateToken as express.RequestHandler);
 routes.get('/getUsers', getAllUsers);
 routes.post('/users', saveUsers);
-routes.put('/updateUser/:id', updateUser)
+routes.put('/updateUser/:id', updateUser);
+routes.delete('/deleteU/:id', deleteUser);
 
 export default routes;

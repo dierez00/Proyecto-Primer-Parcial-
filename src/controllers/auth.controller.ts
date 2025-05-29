@@ -4,22 +4,43 @@ import NodeCache from "node-cache";
 import { cache } from "../utils/cache"; // Este debe ser una instancia compartida
 import dayjs from "dayjs"; // era incorrecto usar `import {days}`
 import { User } from "../models/User";
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
-export const login = (req: Request, res: Response) => {
-  const { username, password } = req.body;
+export const login = async (req: Request, res: Response) => {
+    try {
+        const { email, password } = req.body;
 
-  if (username !== "admin" || password !== "admin") {
-    return res.status(401).json({ message: "Credenciales Incorrectas" });
-  }
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(401).json({ message: "credenciales incorrectas" });
+        }
 
-  const userId = "123456";
-  const accessToken = generateAccessToken(userId);
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            return res.status(401).json({ message: "credenciales incorrectas" });
+        }
 
-  // ⚠️ Se recomienda usar una sola instancia de cache compartida, no crear una nueva aquí
-  cache.set(userId, accessToken, 60 * 15); // TTL en segundos
+        // Generate access token
+        const accessToken = generateAccessToken(user.id);
 
-  res.json({ accessToken });
+        // Store token in cache with 30 minutes expiration
+        cache.set(user.id, accessToken, 60 * 30);
+
+        // Return success response with token
+        return res.json({ 
+            accessToken,
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                role: user.role
+            }
+        });
+
+    } catch (error) {
+        console.error("Error en login:", error);
+        return res.status(500).json({ message: "Error en el servidor" });
+    }
 };
 
 export const getTimeToken = (req: Request, res: Response) => {
@@ -120,4 +141,29 @@ export const updateUser = async (req: Request, res: Response) => {
     console.error('Error al actualizar el usuario:', error);
     return res.status(500).json({ error: 'Error al actualizar el usuario' });
   }
+};
+
+export const deleteUser = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+
+        const deletedUser = await User.findByIdAndUpdate(
+            id,
+            {
+                status: false,
+                deleteDate: new Date()
+            },
+            { new: true }
+        );
+
+        if (!deletedUser) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        return res.json({ message: 'Usuario desactivado', deletedUser });
+
+    } catch (error) {
+        console.log("Error en deleteUser: ", error);
+        return res.status(500).json({ error: 'Error al eliminar usuario' });
+    }
 };
