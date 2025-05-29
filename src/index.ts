@@ -8,7 +8,7 @@ const PORT  = process.env.PORT || 4000;
 
 app.use(express.json());
 app.use(morgan('dev'));
-app.use('/', routes);
+app.use('/api/v1/auth', routes);
 
 connectDB().then(() => {
     app.listen(PORT, () => {
