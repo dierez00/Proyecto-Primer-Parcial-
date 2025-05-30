@@ -6,6 +6,7 @@ export interface IOrden extends Document {
     totalPrice: number;
     subtotal: number;
     orderDate: Date;
+    deleteDate: Date | null;
     status: "pending" | "shipped" | "delivered" | "cancelled";
 }
 
@@ -15,6 +16,7 @@ const OrdenSchema = new Schema<IOrden>({
     totalPrice: { type: Number, required: true },
     subtotal: { type: Number, required: true },
     orderDate: { type: Date, default: Date.now },
+    deleteDate: { type: Date, default: null },
     status: {
         type: String,
         required: true,
