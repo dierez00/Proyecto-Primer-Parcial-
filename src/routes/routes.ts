@@ -1,5 +1,6 @@
 import express from 'express';
-import { login, getTimeToken, updateToken, getAllUsers, saveUsers, updateUser, deleteUser } from '../controllers/auth.controller';
+import { login, getTimeToken, updateToken } from '../controllers/auth.controller';
+import { getAllUsers, saveUsers, updateUser, deleteUser } from '../controllers/usercrud';
 
 const routes = express.Router();
 
