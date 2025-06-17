@@ -10,6 +10,18 @@ export interface IOrden extends Document {
     status: "pending" | "shipped" | "delivered" | "cancelled";
 }
 
+interface IOrderProduc{
+    productId: Types.ObjectId;
+    quantity: number;
+    price: number;
+}
+
+const orderProductSchema = new Schema<IOrderProduc>({
+    productId: { type: Schema.Types.ObjectId, required: true, ref: "Product" },
+    quantity: { type: Number, required: true },
+    price: { type: Number, required: true }
+});
+
 const OrdenSchema = new Schema<IOrden>({
     userId: { type: Schema.Types.ObjectId, required: true, ref: "User" },
     productIds: [{ type: Schema.Types.ObjectId, required: true, ref: "Product" }], // array de referencias
