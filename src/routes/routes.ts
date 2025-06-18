@@ -1,6 +1,9 @@
 import express from 'express';
 import { login, getTimeToken, updateToken } from '../controllers/auth.controller';
 import { getAllUsers, saveUsers, updateUser, deleteUser } from '../controllers/usercrud';
+import { getAllProducts, saveProduct, updateProduct, deleteProduct } from '../controllers/productos';
+import { crearOrden, obtenerOrdenes, obtenerOrdenPorId, actualizarOrden, eliminarOrden } from '../controllers/orderController';
+import { getRoles } from '../controllers/rolesController';
 
 const routes = express.Router();
 
@@ -11,5 +14,22 @@ routes.get('/getUsers', getAllUsers);
 routes.post('/users', saveUsers);
 routes.put('/updateUser/:id', updateUser);
 routes.delete('/deleteU/:id', deleteUser);
+
+// Productos
+routes.get('/getProducts', getAllProducts);
+routes.post('/products', saveProduct);
+routes.put('/updateProduct/:id', updateProduct);
+routes.delete('/deleteProduct/:id', deleteProduct);
+
+// Ordenes
+routes.get('/getOrders', obtenerOrdenes);
+routes.post('/orders', crearOrden);
+routes.get('/getOrder/:id', obtenerOrdenPorId);
+routes.put('/updateOrder/:id', actualizarOrden);
+routes.delete('/deleteOrder/:id', eliminarOrden);
+
+// Roles
+routes.get("/roles", getRoles);
+
 
 export default routes;

@@ -4,8 +4,9 @@ import bcrypt from 'bcryptjs';
 
 export const getAllUsers = async (req: Request, res: Response ) =>{
   const { userEmail } = req.query;
-  const userList = await User.find(); //FIND .> Encontrar todos los registros
+  const userList = await User.find().populate("roles");
   const userByEmail = await User.find({status: true}); //Encontrar por una caracteristica en especial
+  
 
   console.log(userByEmail)
   return res.json({userList});
@@ -13,34 +14,35 @@ export const getAllUsers = async (req: Request, res: Response ) =>{
 
 export const saveUsers = async (req: Request, res: Response) => {
   try {
-    const { name2, email, password, role, phone } = req.body;
+    const { name, email, password, roles, phone } = req.body;
 
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     const newUser = new User({
-      name: name2,
+      name,
       email,
       password: hashedPassword,
-      role,
+      roles, // ahora espera un array de ObjectIds
       phone,
       createDate: Date.now(),
       status: true,
     });
 
     const user = await newUser.save();
-
     return res.json({ user });
+
   } catch (error) {
     console.log("Error al guardar el usuario:", error);
     return res.status(426).json({ error });
   }
 };
 
+
 export const updateUser = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, password, role, phone } = req.body;
+    const { name, password, roles, phone } = req.body;
 
     const user = await User.findById(id);
     if (!user) {
@@ -48,7 +50,7 @@ export const updateUser = async (req: Request, res: Response) => {
     }
 
     if (name) user.name = name;
-    if (role) user.role = role;
+    if (roles) user.roles = roles;
     if (phone) user.phone = phone;
     if (password) {
       const saltRounds = 10;
