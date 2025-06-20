@@ -9,12 +9,21 @@ const Icons = {
   BarChartOutlined,
 };
 
-function MenuDynamic() {
-  const [menuItems, setMenuItems] = useState([]);
+interface MenuItem {
+  title: string;
+  path: string;
+  icon: keyof typeof Icons;
+  roles: string[];
+}
+
+const MenuDynamic = () => {
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
 
-  const fakeMenuData = [
+  const currentUserRole = "665a1f2b40fd3a12b3e77611"; // ejemplo
+
+  const fakeMenuData: MenuItem[] = [
     {
       title: "Dashboard",
       path: "/dashboard",
@@ -42,14 +51,16 @@ function MenuDynamic() {
   }, []);
 
   const renderMenu = () => {
-    return menuItems.map((item: any) => {
-      const IconComponent = Icons[item.icon as keyof typeof Icons];
-      return {
-        key: item.path,
-        icon: IconComponent ? <IconComponent /> : null,
-        label: item.title,
-      };
-    });
+    return menuItems
+      .filter(item => item.roles.includes(currentUserRole))
+      .map(item => {
+        const IconComponent = Icons[item.icon];
+        return {
+          key: item.path,
+          icon: IconComponent ? <IconComponent /> : null,
+          label: item.title,
+        };
+      });
   };
 
   return (
@@ -62,6 +73,6 @@ function MenuDynamic() {
       style={{ height: '100%', borderRight: 0 }}
     />
   );
-}
+};
 
 export default MenuDynamic;
