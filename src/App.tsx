@@ -1,4 +1,6 @@
 import Register from "./Register"; 
+import 'antd/dist/reset.css'; // para Ant Design v5+
+
 
 function App() {
   return (
