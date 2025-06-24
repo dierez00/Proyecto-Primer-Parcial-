@@ -3,7 +3,7 @@ import { login, getTimeToken, updateToken } from '../controllers/auth.controller
 import { getAllUsers, saveUsers, updateUser, deleteUser } from '../controllers/usercrud';
 import { getAllProducts, saveProduct, updateProduct, deleteProduct } from '../controllers/productos';
 import { crearOrden, obtenerOrdenes, obtenerOrdenPorId, actualizarOrden, eliminarOrden } from '../controllers/orderController';
-import { getRoles } from '../controllers/rolesController';
+import { getRoles, createRole } from '../controllers/roles';
 
 const routes = express.Router();
 
@@ -30,6 +30,7 @@ routes.delete('/deleteOrder/:id', eliminarOrden);
 
 // Roles
 routes.get("/roles", getRoles);
+routes.post("/roles", createRole);
 
 
 export default routes;
