@@ -47,9 +47,9 @@ export default function UserForm() {
   useEffect(() => {
     const fetchRoles = async () => {
       try {
-        const res = await fetch("http://192.168.1.126:4000/app/roles")
+        const res = await fetch("http://172.20.97.253:4000/app/roles")
         const data = await res.json()
-        setAvailableRoles(data.roles)
+        setAvailableRoles(data)
       } catch (err) {
         console.error("Error al obtener roles:", err)
       }
@@ -87,7 +87,7 @@ export default function UserForm() {
     if (!validateForm()) return
     setIsLoading(true)
     try {
-      const res = await fetch("http://192.168.1.126:4000/app/users", {
+      const res = await fetch("http://172.20.97.253:4000/app/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
