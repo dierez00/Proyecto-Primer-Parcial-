@@ -34,6 +34,9 @@ interface FormErrors {
 }
 
 export default function UserForm() {
+
+  const registerUrl = import.meta.env.VITE_REGISTER_URL;
+
   const [formData, setFormData] = useState<FormData>({
     name: "",
     email: "",
@@ -51,7 +54,7 @@ export default function UserForm() {
   useEffect(() => {
     const fetchRoles = async () => {
       try {
-        const res = await fetch("http://192.168.1.126:4000/app/roles")
+        const res = await fetch(`${registerUrl}/roles`)
         const data = await res.json()
         setAvailableRoles(data)
       } catch (err) {
@@ -134,7 +137,7 @@ export default function UserForm() {
     setErrors({})
 
     try {
-      const res = await fetch("http://192.168.1.126:4000/app/users", {
+      const res = await fetch(`${registerUrl}/users`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),

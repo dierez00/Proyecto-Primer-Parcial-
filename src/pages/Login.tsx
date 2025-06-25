@@ -37,6 +37,9 @@ interface LoginResponse {
 
 
 export default function Login() {
+
+    const loginUrl = import.meta.env.VITE_LOGIN_URL;
+
     const navigate = useNavigate();
     const { login } = useAuth(); // ✅ usa el login del contexto
 
@@ -87,7 +90,7 @@ export default function Login() {
         setErrors({});
 
         try {
-            const response = await fetch("http://192.168.1.126:4000/app/login", {
+            const response = await fetch(`${loginUrl}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -108,7 +111,6 @@ export default function Login() {
 
             setIsSuccess(true);
 
-            // ✅ Redirige después de un segundo
             setTimeout(() => {
                 navigate("/dashboard"); // Cambia según tu ruta inicial deseada
             }, 1000);
