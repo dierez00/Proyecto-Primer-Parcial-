@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { DashboardOutlined, UserOutlined, BarChartOutlined } from '@ant-design/icons';
 import { Menu } from 'antd';
+import { useAuth } from '@/auth/AuthContext';
 
 const Icons = {
   DashboardOutlined,
@@ -10,57 +11,61 @@ const Icons = {
 };
 
 interface MenuItem {
+  _id: string;
   title: string;
   path: string;
   icon: keyof typeof Icons;
-  roles: string[];
+  roles: { type: string }[];
 }
 
 const MenuDynamic = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const { user, token } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const currentUserRole = "665a1f2b40fd3a12b3e77611"; // ejemplo
-
-  const fakeMenuData: MenuItem[] = [
-    {
-      title: "Dashboard",
-      path: "/dashboard",
-      icon: "DashboardOutlined",
-      roles: ["665a1f2b40fd3a12b3e77611"]
-    },
-    {
-      title: "Usuarios",
-      path: "/users",
-      icon: "UserOutlined",
-      roles: ["665a1f2b40fd3a12b3e77612"]
-    },
-    {
-      title: "Reportes",
-      path: "/reports",
-      icon: "BarChartOutlined",
-      roles: ["665a1f2b40fd3a12b3e77611", "665a1f2b40fd3a12b3e77612"]
-    }
-  ];
+  const getMenusByRoleUrl = import.meta.env.VITE_MENU_ROL;
 
   useEffect(() => {
-    setTimeout(() => {
-      setMenuItems(fakeMenuData);
-    }, 500);
-  }, []);
+    const fetchMenus = async () => {
+      if (!user?.roles || user.roles.length === 0) return;
+
+      const roles = user.roles.map(role => role.type); // ["admin", "editor"]
+
+      try {
+        const response = await fetch(`${getMenusByRoleUrl}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ roles })
+        });
+
+        if (!response.ok) {
+          console.error("Error al obtener menús:", await response.text());
+          return;
+        }
+
+        const menuList: MenuItem[] = await response.json();
+        setMenuItems(menuList);
+      } catch (error) {
+        console.error("Error al obtener menús por roles:", error);
+      }
+    };
+
+    fetchMenus();
+  }, [user]);
 
   const renderMenu = () => {
-    return menuItems
-      .filter(item => item.roles.includes(currentUserRole))
-      .map(item => {
-        const IconComponent = Icons[item.icon];
-        return {
-          key: item.path,
-          icon: IconComponent ? <IconComponent /> : null,
-          label: item.title,
-        };
-      });
+    return menuItems.map(item => {
+      const IconComponent = Icons[item.icon];
+      return {
+        key: item.path,
+        icon: IconComponent ? <IconComponent /> : null,
+        label: item.title,
+      };
+    });
   };
 
   return (

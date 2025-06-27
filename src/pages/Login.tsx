@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext"; // ✅ importa tu contexto
 
 
+
 interface LoginData {
     email: string;
     password: string;
@@ -23,13 +24,19 @@ interface LoginErrors {
     general?: string;
 }
 
+interface Role {
+    _id: string;
+    name: string;
+    description?: string;    
+}
+
 interface LoginResponse {
     accessToken?: string; // ✅ cambió de token → accessToken
     user?: {
         id: string;
         name?: string;
         email: string;
-        roles?: string[];
+        roles?: Role[];
     };
     message?: string;
     success?: boolean;
@@ -41,7 +48,7 @@ export default function Login() {
     const loginUrl = import.meta.env.VITE_LOGIN_URL;
 
     const navigate = useNavigate();
-    const { login } = useAuth(); // ✅ usa el login del contexto
+    const { login } = useAuth(); 
 
     const [formData, setFormData] = useState<LoginData>({
         email: "",
@@ -106,13 +113,13 @@ export default function Login() {
                 throw new Error("Error al iniciar sesión");
             }
 
-            login(result.accessToken, formData.rememberMe);
+            login(result.accessToken, result.user, formData.rememberMe);
 
 
             setIsSuccess(true);
 
             setTimeout(() => {
-                navigate("/dashboard"); // Cambia según tu ruta inicial deseada
+                navigate("/dashboard"); 
             }, 1000);
         } catch (error) {
             console.error("Error:", error);
