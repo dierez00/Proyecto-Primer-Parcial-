@@ -4,6 +4,7 @@ import { getAllUsers, saveUsers, updateUser, deleteUser } from '../controllers/u
 import { getAllProducts, saveProduct, updateProduct, deleteProduct } from '../controllers/productos';
 import { crearOrden, obtenerOrdenes, obtenerOrdenPorId, actualizarOrden, eliminarOrden } from '../controllers/orderController';
 import { getRoles, createRole } from '../controllers/roles';
+import { getMenus, getMenuByRol, createMenu, updateMenu, deleteMenu } from '../controllers/menuController';
 
 const routes = express.Router();
 
@@ -31,6 +32,13 @@ routes.delete('/deleteOrder/:id', eliminarOrden);
 // Roles
 routes.get("/roles", getRoles);
 routes.post("/roles", createRole);
+
+// Menus
+routes.get("/menus", getMenus);
+routes.post("/menusbyrol", getMenuByRol);
+routes.post("/menus", createMenu);
+routes.put("/menus/:id", updateMenu);
+routes.delete("/menu/:id", deleteMenu);
 
 
 export default routes;

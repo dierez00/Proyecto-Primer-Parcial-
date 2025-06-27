@@ -9,7 +9,9 @@ export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    // Buscamos al usuario y populamos los roles
+    const user = await User.findOne({ email }).populate("roles");
+
     if (!user) {
       return res.status(401).json({ message: "credenciales incorrectas" });
     }
@@ -20,16 +22,16 @@ export const login = async (req: Request, res: Response) => {
     }
 
     const accessToken = generateAccessToken(user.id);
-    cache.set(user.id, accessToken, 60 * 30); // 30 minutos
+    cache.set(user.id, accessToken, 60 * 30);
 
-    return res.json({ 
+    return res.json({
       accessToken,
       user: {
         id: user.id,
-        username: user.username,
+        name: user.name,
         email: user.email,
-        role: user.role
-      }
+        roles: user.roles, // ← ahora esto contiene objetos completos, no solo ObjectIds
+      },
     });
 
   } catch (error) {
@@ -37,6 +39,7 @@ export const login = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Error en el servidor" });
   }
 };
+
 
 export const getTimeToken = (req: Request, res: Response) => {
   const { userId } = req.query;
