@@ -1,7 +1,8 @@
 import { JSX } from 'react';
-import OrderData from '../modules/order/OrderData';
+import OrdersTable from '../modules/order/OrderTable';
 import UserForm from '../modules/user/UserForm';
-import ProductData from '../modules/product/ProductData';
+import UsersTable from '../modules/user/UserTable';
+import ProductsTable from '../modules/product/ProductTable';
 
 export interface AppRoute{
     path: string;
@@ -23,21 +24,21 @@ const routes: AppRoute[] = [
   },
   {
     path: '/users',
-    element: <UserForm />,
+    element: <UsersTable />,
     label: 'Usuarios',
     icon: 'UserOutlined',
     allowedRoles: ['admin']
   },
   {
     path: '/products',
-    element: <ProductData />,
+    element: <ProductsTable />,
     label: 'Productos',
     icon: 'UserOutlined',
     allowedRoles: ['admin', 'editor']
   },
   {
     path: '/orders',
-    element: <OrderData />,
+    element: <OrdersTable />,
     label: 'Órdenes',
     icon: 'UserOutlined',
     allowedRoles: ['admin', 'editor']
