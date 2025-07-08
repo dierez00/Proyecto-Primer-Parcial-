@@ -23,9 +23,9 @@ routes.put('/updateProduct/:id', updateProduct);
 routes.delete('/deleteProduct/:id', deleteProduct);
 
 // Ordenes
-routes.get('/getOrders', obtenerOrdenes);
+routes.get('/orders', obtenerOrdenes);
 routes.post('/orders', crearOrden);
-routes.get('/getOrder/:id', obtenerOrdenPorId);
+routes.get('/order/:id', obtenerOrdenPorId);
 routes.put('/updateOrder/:id', actualizarOrden);
 routes.delete('/deleteOrder/:id', eliminarOrden);
 
