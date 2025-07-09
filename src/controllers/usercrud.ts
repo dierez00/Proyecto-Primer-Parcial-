@@ -1,15 +1,16 @@
 import { Request, Response } from "express";
 import { User } from "../models/User";
+import { Roles } from "../models/roles";
 import bcrypt from 'bcryptjs';
 
-export const getAllUsers = async (req: Request, res: Response ) =>{
+export const getAllUsers = async (req: Request, res: Response) => {
   const { userEmail } = req.query;
   const userList = await User.find().populate("roles");
-  const userByEmail = await User.find({status: true}); //Encontrar por una caracteristica en especial
-  
+  const userByEmail = await User.find({ status: true }); //Encontrar por una caracteristica en especial
+
 
   console.log(userByEmail)
-  return res.json({userList});
+  return res.json({ userList });
 }
 
 export const saveUsers = async (req: Request, res: Response) => {
@@ -50,21 +51,26 @@ export const updateUser = async (req: Request, res: Response) => {
     }
 
     if (name) user.name = name;
-    if (roles) user.roles = roles;
     if (phone) user.phone = phone;
     if (password) {
       const saltRounds = 10;
       user.password = await bcrypt.hash(password, saltRounds);
     }
 
+    if (roles && roles.length > 0) {
+      const foundRoles = await Roles.find({ type: { $in: roles } });
+      user.roles = foundRoles.map((role: any) => role._id);
+    }
+
     const updatedUser = await user.save();
     return res.json({ user: updatedUser });
-    
+
   } catch (error) {
     console.error('Error al actualizar el usuario:', error);
     return res.status(500).json({ error: 'Error al actualizar el usuario' });
   }
 };
+
 
 export const deleteUser = async (req: Request, res: Response) => {
   try {
