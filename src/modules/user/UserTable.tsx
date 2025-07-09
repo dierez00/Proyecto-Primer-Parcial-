@@ -1,5 +1,3 @@
-"use client"
-
 import type React from "react"
 
 import { useState, useEffect } from "react"
@@ -7,10 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, AlertCircle, Users, Mail, Phone, Calendar, Shield } from "lucide-react"
+import { Loader2, AlertCircle, Users, Mail, Phone, Calendar, Shield, Edit } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ChevronLeft, ChevronRight, Search } from "lucide-react"
+import EditModal from "@/components/edit-modal"
 
 interface Role {
   _id: string
@@ -42,8 +41,11 @@ export default function UsersTable() {
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
 
   const url = import.meta.env.VITE_USERS_URL;
+  const saveUrl = import.meta.env.VITE_SAVE_USERS_URL;
 
   useEffect(() => {
     fetchUsers()
@@ -108,6 +110,37 @@ export default function UsersTable() {
         {status ? "Activo" : "Inactivo"}
       </Badge>
     )
+  }
+
+  const handleEditUser = (user: User) => {
+    setSelectedUser(user)
+    setEditModalOpen(true)
+  }
+
+  const handleSaveUser = async (formData: any) => {
+    if (!selectedUser) return
+
+    try {
+      const response = await fetch(
+        `${saveUrl}/${selectedUser._id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        },
+      )
+
+      if (!response.ok) {
+        throw new Error("Error al actualizar el usuario")
+      }
+
+      // Refresh the users list
+      await fetchUsers()
+    } catch (error) {
+      throw error
+    }
   }
 
   // Filter users based on search term
@@ -199,6 +232,8 @@ export default function UsersTable() {
       </div>
     )
   }
+
+  const availableRoles = [{ _id: "1", type: "admin", __v: 0 }]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -296,6 +331,7 @@ export default function UsersTable() {
                           </div>
                         </TableHead>
                         <TableHead>Estado</TableHead>
+                        <TableHead>Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -322,6 +358,16 @@ export default function UsersTable() {
                             </div>
                           </TableCell>
                           <TableCell>{getStatusBadge(user.status)}</TableCell>
+                          <TableCell>
+                            <Button
+                              onClick={() => handleEditUser(user)}
+                              variant="outline"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -368,6 +414,14 @@ export default function UsersTable() {
           </CardContent>
         </Card>
       </div>
+      <EditModal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSave={handleSaveUser}
+        data={selectedUser}
+        type="user"
+        availableRoles={availableRoles}
+      />
     </div>
   )
 }

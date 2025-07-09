@@ -7,8 +7,9 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Loader2, AlertCircle, ShoppingCart, User, Package, Calendar, DollarSign, Hash } from "lucide-react"
+import { Loader2, AlertCircle, ShoppingCart, User, Package, Calendar, DollarSign, Hash, Edit } from "lucide-react"
 import { ChevronLeft, ChevronRight, Search } from "lucide-react"
+import EditModal from "@/components/edit-modal"
 
 interface Product {
   _id: string
@@ -59,11 +60,16 @@ export default function OrdersTable() {
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [availableProducts, setAvailableProducts] = useState<any[]>([])
 
   const url = import.meta.env.VITE_ORDERS_URL;
+  const saveUrl = import.meta.env.VITE_SAVE_ORDERS_URL;
 
   useEffect(() => {
     fetchOrders()
+    fetchAvailableProducts()
   }, [])
 
   const fetchOrders = async () => {
@@ -192,6 +198,49 @@ export default function OrdersTable() {
       pages.push(i)
     }
     return pages
+  }
+
+  const handleEditOrder = (order: Order) => {
+    setSelectedOrder(order)
+    setEditModalOpen(true)
+  }
+
+  const handleSaveOrder = async (formData: any) => {
+    if (!selectedOrder) return
+
+    try {
+      const response = await fetch(
+        `${saveUrl}/${selectedOrder._id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        },
+      )
+
+      if (!response.ok) {
+        throw new Error("Error al actualizar la orden")
+      }
+
+      // Refresh the orders list
+      await fetchOrders()
+    } catch (error) {
+      throw error
+    }
+  }
+
+  const fetchAvailableProducts = async () => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/app/products`)
+      if (response.ok) {
+        const data = await response.json()
+        setAvailableProducts(data.products || [])
+      }
+    } catch (error) {
+      console.error("Error fetching products:", error)
+    }
   }
 
   if (isLoading) {
@@ -329,6 +378,7 @@ export default function OrdersTable() {
                             <span>Fecha</span>
                           </div>
                         </TableHead>
+                        <TableHead>Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -355,6 +405,16 @@ export default function OrdersTable() {
                           <TableCell>{getStatusBadge(order.status)}</TableCell>
                           <TableCell>
                             <span className="text-sm text-gray-700">{formatDate(order.orderDate)}</span>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              onClick={() => handleEditOrder(order)}
+                              variant="outline"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -402,6 +462,14 @@ export default function OrdersTable() {
           </CardContent>
         </Card>
       </div>
+      <EditModal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSave={handleSaveOrder}
+        data={selectedOrder}
+        type="order"
+        availableProducts={availableProducts}
+      />
     </div>
   )
 }

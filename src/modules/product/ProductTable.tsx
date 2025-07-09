@@ -1,5 +1,3 @@
-"use client"
-
 import type React from "react"
 
 import { useState, useEffect } from "react"
@@ -9,8 +7,9 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Loader2, AlertCircle, Package, DollarSign, Hash, FileText, Archive } from "lucide-react"
+import { Loader2, AlertCircle, Package, DollarSign, Hash, FileText, Archive, Edit } from "lucide-react"
 import { ChevronLeft, ChevronRight, Search } from "lucide-react"
+import EditModal from "@/components/edit-modal"
 
 interface Product {
   _id: string
@@ -33,8 +32,11 @@ export default function ProductsTable() {
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
 
   const url = import.meta.env.VITE_PRODUCTS_URL;
+  const saveUrl = import.meta.env.VITE_SAVE_PRODUCTS_URL;
 
   useEffect(() => {
     fetchProducts()
@@ -157,6 +159,37 @@ export default function ProductsTable() {
       pages.push(i)
     }
     return pages
+  }
+
+  const handleEditProduct = (product: Product) => {
+    setSelectedProduct(product)
+    setEditModalOpen(true)
+  }
+
+  const handleSaveProduct = async (formData: any) => {
+    if (!selectedProduct) return
+
+    try {
+      const response = await fetch(
+        `${saveUrl}/${selectedProduct._id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        },
+      )
+
+      if (!response.ok) {
+        throw new Error("Error al actualizar el producto")
+      }
+
+      // Refresh the products list
+      await fetchProducts()
+    } catch (error) {
+      throw error
+    }
   }
 
   // Calculate statistics
@@ -355,6 +388,7 @@ export default function ProductsTable() {
                         </TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead>Valor Total</TableHead>
+                        <TableHead>Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -387,6 +421,16 @@ export default function ProductsTable() {
                             <span className="font-semibold text-green-600">
                               {formatCurrency(product.price * product.stock)}
                             </span>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              onClick={() => handleEditProduct(product)}
+                              variant="outline"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -434,6 +478,13 @@ export default function ProductsTable() {
           </CardContent>
         </Card>
       </div>
+      <EditModal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSave={handleSaveProduct}
+        data={selectedProduct}
+        type="product"
+      />
     </div>
   )
 }
