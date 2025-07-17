@@ -4,7 +4,7 @@ import routes from './routes/routes';
 import connectDB from './config/bd';
 import cors from 'cors';
 const app = express();
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 4000;
 
 app.use(express.json());
 app.use(cors());

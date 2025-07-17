@@ -1,4 +1,5 @@
 import { Roles } from "../models/roles";
+import { Request, Response } from "express";
 
 export const getRoles = async (req: Request, res: Response) => {
   try {
