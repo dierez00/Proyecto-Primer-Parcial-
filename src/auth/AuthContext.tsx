@@ -1,10 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-
-interface Role {
-  _id: string;
-  name: string;
-  description?: string;
-}
+import type { Role } from '@/components/types';
 
 interface User {
   id: string;
@@ -34,15 +29,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const storedUser =
       localStorage.getItem('authUser') || sessionStorage.getItem('authUser');
 
-    if (storedToken) {
-      setToken(storedToken);
-    }
+    if (storedToken) setToken(storedToken);
 
     if (storedUser) {
       try {
-        setUser(JSON.parse(storedUser));
+        const parsedUser: User = JSON.parse(storedUser);
+        setUser(parsedUser);
       } catch {
-        console.warn('Error al parsear usuario guardado');
+        console.warn('Error al parsear el usuario guardado');
       }
     }
 
@@ -50,13 +44,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = (newToken: string, userData: User, remember: boolean) => {
-    if (remember) {
-      localStorage.setItem('authToken', newToken);
-      localStorage.setItem('authUser', JSON.stringify(userData));
-    } else {
-      sessionStorage.setItem('authToken', newToken);
-      sessionStorage.setItem('authUser', JSON.stringify(userData));
-    }
+    const storage = remember ? localStorage : sessionStorage;
+
+    storage.setItem('authToken', newToken);
+    storage.setItem('authUser', JSON.stringify(userData));
+    storage.setItem('userId', userData.id); // Guardamos el ID del usuario
+
+    console.log('User ID guardado:', userData.id); // Debug opcional
 
     setToken(newToken);
     setUser(userData);
@@ -65,14 +59,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('authUser');
+    localStorage.removeItem('userId');
+
     sessionStorage.removeItem('authToken');
     sessionStorage.removeItem('authUser');
+    sessionStorage.removeItem('userId');
+
     setToken(null);
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ token, user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ token, user, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
@@ -80,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth debe usarse dentro de un <AuthProvider>');
   }
   return context;

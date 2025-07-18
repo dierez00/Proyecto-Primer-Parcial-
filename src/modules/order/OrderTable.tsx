@@ -1,71 +1,38 @@
-import type React from "react"
-
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Card, CardContent, CardDescription, CardHeader, CardTitle,
+} from "@/components/ui/card"
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Loader2, AlertCircle, ShoppingCart, User, Package, Calendar, DollarSign, Hash, Edit } from "lucide-react"
-import { ChevronLeft, ChevronRight, Search } from "lucide-react"
-import EditModal from "@/components/edit-modal"
+import {
+  Loader2, AlertCircle, ShoppingCart, Edit, ChevronLeft, ChevronRight, Search,
+} from "lucide-react"
 
-interface Product {
-  _id: string
-  name: string
-  description: string
-  price: number
-  stock: number
-  status: boolean
-  __v: number
-}
-
-interface OrderProduct {
-  productId: Product
-  quantity: number
-  price: number
-  _id: string
-}
-
-interface OrderUser {
-  _id: string
-  name: string
-  email: string
-  password: string
-  roles: string[]
-  phone: string
-  createDate: string
-  deleteDate: string | null
-  status: boolean
-  __v: number
-}
-
-interface Order {
-  _id: string
-  userId: OrderUser
-  products: OrderProduct[]
-  totalPrice: number
-  subtotal: number
-  deleteDate: string | null
-  status: string
-  orderDate: string
-  __v: number
-}
+import CreateOrderModal from "@/components/modals/CreateOrderModal"
+import EditOrderModal   from "@/components/modals/EditOrderModal"
+import type { Order, OrderProduct, Product } from "@/components/types"
 
 export default function OrdersTable() {
-  const [orders, setOrders] = useState<Order[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 10
-  const [editModalOpen, setEditModalOpen] = useState(false)
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
-  const [availableProducts, setAvailableProducts] = useState<any[]>([])
+  const [orders, setOrders]               = useState<Order[]>([])
+  const [isLoading, setIsLoading]         = useState(true)
+  const [error, setError]                 = useState<string | null>(null)
+  const [searchTerm, setSearchTerm]       = useState("")
+  const [currentPage, setCurrentPage]     = useState(1)
+  const itemsPerPage                      = 10
 
-  const url = import.meta.env.VITE_ORDERS_URL;
-  const saveUrl = import.meta.env.VITE_SAVE_ORDERS_URL;
+  const [showCreate, setShowCreate]       = useState(false)
+  const [showEdit, setShowEdit]           = useState(false)
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [availableProducts, setAvailableProducts] = useState<Product[]>([])
+
+  const listUrl   = import.meta.env.VITE_ORDERS_URL!
+  const saveUrl   = import.meta.env.VITE_SAVE_ORDERS_URL!
+  const createUrl = import.meta.env.VITE_CREATE_ORDER_URL!
 
   useEffect(() => {
     fetchOrders()
@@ -73,403 +40,269 @@ export default function OrdersTable() {
   }, [])
 
   const fetchOrders = async () => {
+    setIsLoading(true)
+    setError(null)
     try {
-      setIsLoading(true)
-      setError(null)
-
-      const response = await fetch(`${url}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${response.statusText}`)
-      }
-
-      const data: Order[] = await response.json()
-      setOrders(data || [])
-    } catch (err) {
-      console.error("Error fetching orders:", err)
-      setError(err instanceof Error ? err.message : "Error al cargar las órdenes")
+      const res = await fetch(listUrl)
+      if (!res.ok) throw new Error(res.statusText)
+      const data: Order[] = await res.json()
+      setOrders(data)
+    } catch (err: any) {
+      setError(err.message)
     } finally {
       setIsLoading(false)
     }
   }
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString("es-ES", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+  const fetchAvailableProducts = async () => {
+    try {
+      const res = await fetch(import.meta.env.VITE_PRODUCTS_URL || "")
+      if (!res.ok) return
+      const json = await res.json()
+      setAvailableProducts(json.products || [])
+    } catch {
+      // ignore
+    }
+  }
+
+  const handleCreateOrder = async (
+    values: { status: string; products: { productId: string; quantity: number }[] }
+  ) => {
+    const userId = sessionStorage.getItem('userId') || ''
+    if (!userId) {
+      console.error('No existe userId en sessionStorage')
+      return
+    }
+
+    const payload = {
+      userId,
+      status:   values.status,   // pending | shipped | delivered | cancelled
+      products: values.products.map(p => ({
+        productId: p.productId,
+        quantity:  p.quantity,
+      })),
+    }
+
+    console.log('🛠️ CreateOrder payload:', payload)
+
+    const res = await fetch(createUrl, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify(payload),
     })
-  }
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency: "MXN",
-    }).format(amount)
-  }
-
-  const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      pending: { variant: "secondary" as const, label: "Pendiente", color: "bg-yellow-100 text-yellow-800" },
-      completed: { variant: "default" as const, label: "Completada", color: "bg-green-100 text-green-800" },
-      cancelled: { variant: "destructive" as const, label: "Cancelada", color: "bg-red-100 text-red-800" },
-      processing: { variant: "default" as const, label: "Procesando", color: "bg-blue-100 text-blue-800" },
+    if (!res.ok) {
+      const text = await res.text()
+      console.error('POST error body:', text)
+      throw new Error(`Error ${res.status}`)
     }
 
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending
-
-    return (
-      <Badge variant={config.variant} className="text-xs">
-        {config.label}
-      </Badge>
-    )
-  }
-
-  const getProductsSummary = (products: OrderProduct[]) => {
-    const totalItems = products.reduce((sum, product) => sum + product.quantity, 0)
-    const productNames = products.map((p) => p.productId.name).join(", ")
-
-    return (
-      <div className="space-y-1">
-        <div className="text-sm font-medium text-gray-900">
-          {totalItems} {totalItems === 1 ? "producto" : "productos"}
-        </div>
-        <div className="text-xs text-gray-500 max-w-xs truncate" title={productNames}>
-          {productNames}
-        </div>
-      </div>
-    )
-  }
-
-  // Filter orders based on search term
-  const filteredOrders = orders.filter(
-    (order) =>
-      order.userId.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.userId.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order._id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.products.some((product) => product.productId.name.toLowerCase().includes(searchTerm.toLowerCase())),
-  )
-
-  // Calculate pagination
-  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const currentOrders = filteredOrders.slice(startIndex, endIndex)
-
-  // Handle search
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value)
-    setCurrentPage(1) // Reset to first page when searching
-  }
-
-  // Handle pagination
-  const goToPage = (page: number) => {
-    setCurrentPage(page)
-  }
-
-  const goToPreviousPage = () => {
-    setCurrentPage((prev) => Math.max(prev - 1, 1))
-  }
-
-  const goToNextPage = () => {
-    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-  }
-
-  // Generate page numbers for pagination
-  const getPageNumbers = () => {
-    const pages = []
-    const maxVisiblePages = 5
-    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2))
-    const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1)
-
-    if (endPage - startPage + 1 < maxVisiblePages) {
-      startPage = Math.max(1, endPage - maxVisiblePages + 1)
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-      pages.push(i)
-    }
-    return pages
+    await fetchOrders()
+    setShowCreate(false)
   }
 
   const handleEditOrder = (order: Order) => {
     setSelectedOrder(order)
-    setEditModalOpen(true)
+    setShowEdit(true)
   }
-
-  const handleSaveOrder = async (formData: any) => {
-    if (!selectedOrder) return
-
-    try {
-      const response = await fetch(
-        `${saveUrl}/${selectedOrder._id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(formData),
-        },
-      )
-
-      if (!response.ok) {
-        throw new Error("Error al actualizar la orden")
-      }
-
-      // Refresh the orders list
-      await fetchOrders()
-    } catch (error) {
-      throw error
+  const handleSaveOrder = async (
+    id: string,
+    payload: { status: string; products: { price: number; quantity: number }[] }
+  ) => {
+    const res = await fetch(`${saveUrl}/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    })
+    if (!res.ok) {
+      const text = await res.text()
+      console.error('PUT error body:', text)
+      throw new Error(`Error ${res.status}`)
     }
+    await fetchOrders()
+    setShowEdit(false)
   }
 
-  const fetchAvailableProducts = async () => {
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/app/products`)
-      if (response.ok) {
-        const data = await response.json()
-        setAvailableProducts(data.products || [])
-      }
-    } catch (error) {
-      console.error("Error fetching products:", error)
+  const formatDate = (s: string) =>
+    new Date(s).toLocaleDateString("es-ES", {
+      year: "numeric", month: "short", day: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    })
+
+  const formatCurrency = (n: number) =>
+    new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(n)
+
+  // Badge con los nuevos enums
+  const getStatusBadge = (status: string) => {
+    const cfg: Record<string, { variant: any; label: string }> = {
+      pending:   { variant: "secondary",  label: "Pendiente" },
+      shipped:   { variant: "default",    label: "Enviado"   },
+      delivered: { variant: "default",    label: "Entregado" },
+      cancelled: { variant: "destructive", label: "Cancelada" },
     }
+    const { variant, label } = cfg[status] || cfg.pending
+    return <Badge variant={variant} className="text-xs">{label}</Badge>
   }
 
-  if (isLoading) {
+  const getProductsSummary = (products: OrderProduct[]) => {
+    const total = products.reduce((sum, p) => sum + p.quantity, 0)
+    const names = products
+      .map(p => {
+        if (typeof p.productId === "string") {
+          const prod = typeof p.productId === "string"
+            ? availableProducts.find(ap => typeof p.productId === "string" && ap._id === p.productId)
+            : undefined
+          return prod?.name ?? "(desconocido)"
+        }
+        if (p.productId && typeof p.productId === "object" && "name" in p.productId) {
+          return p.productId.name
+        }
+        return "(desconocido)"
+      })
+      .join(", ")
+
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 flex items-center justify-center px-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <Loader2 className="mx-auto h-16 w-16 text-purple-500 animate-spin mb-4" />
-              <h2 className="text-xl font-semibold text-gray-700 mb-2">Cargando órdenes...</h2>
-              <p className="text-gray-500">Por favor espera un momento</p>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="space-y-1">
+        <div className="text-sm font-medium">
+          {total} {total > 1 ? "productos" : "producto"}
+        </div>
+        <div className="text-xs text-gray-500 max-w-xs truncate" title={names}>
+          {names}
+        </div>
       </div>
     )
   }
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 flex items-center justify-center px-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="mt-2">
-                <strong>Error al cargar órdenes:</strong>
-                <br />
-                {error}
-              </AlertDescription>
-            </Alert>
-            <button
-              onClick={fetchOrders}
-              className="mt-4 w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              Reintentar
-            </button>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+  const filtered = orders.filter(o =>
+    o.userId.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    o._id.includes(searchTerm) ||
+    o.products.some(p => {
+      let nm = ""
+      if (typeof p.productId === "string") {
+        nm = typeof p.productId === "string"
+          ? availableProducts.find(ap => typeof p.productId === "string" && ap._id === p.productId)?.name || ""
+          : ""
+      } else if (p.productId && typeof p.productId === "object" && "name" in p.productId) {
+        nm = p.productId.name
+      }
+      return nm.toLowerCase().includes(searchTerm.toLowerCase())
+    })
+  )
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage)
+  const start      = (currentPage - 1) * itemsPerPage
+  const pageItems  = filtered.slice(start, start + itemsPerPage)
+
+  if (isLoading) return <Loader2 className="animate-spin" />
+  if (error)      return (
+    <Card>
+      <CardContent>
+        <Alert variant="destructive">
+          <AlertCircle />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+        <Button onClick={fetchOrders}>Reintentar</Button>
+      </CardContent>
+    </Card>
+  )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4">
+    <div className="p-4 bg-purple-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
         <Card>
-          <CardHeader>
+          <CardHeader className="flex justify-between items-center">
             <div className="flex items-center space-x-2">
               <ShoppingCart className="h-6 w-6 text-purple-600" />
-              <CardTitle className="text-2xl font-bold">Gestión de Órdenes</CardTitle>
+              <CardTitle>Gestión de Órdenes</CardTitle>
             </div>
-            <CardDescription>Visualización y seguimiento de todas las órdenes del sistema</CardDescription>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4">
-              <div className="flex items-center space-x-4">
-                <p className="text-sm text-gray-600">
-                  Total: <span className="font-semibold text-purple-600">{orders.length}</span> órdenes
-                </p>
-                {searchTerm && (
-                  <p className="text-sm text-gray-600">
-                    Mostrando: <span className="font-semibold text-green-600">{filteredOrders.length}</span> resultados
-                  </p>
-                )}
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    type="text"
-                    placeholder="Buscar por cliente, orden o producto..."
-                    value={searchTerm}
-                    onChange={handleSearch}
-                    className="pl-10 w-80"
-                  />
-                </div>
-                <Button onClick={fetchOrders} variant="outline" size="sm">
-                  Actualizar
+            <Button onClick={() => setShowCreate(true)}>Registrar Orden</Button>
+          </CardHeader>
+          <CardDescription>Visualización y seguimiento de las órdenes</CardDescription>
+
+          <div className="flex items-center gap-2 px-6 pt-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <Input
+                className="pl-10 w-80"
+                placeholder="Buscar…"
+                value={searchTerm}
+                onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1) }}
+              />
+            </div>
+            <Button onClick={fetchOrders} variant="outline">Actualizar</Button>
+          </div>
+
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID Orden</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Productos</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pageItems.map(o => (
+                  <TableRow key={o._id}>
+                    <TableCell className="font-mono">#{o._id.slice(-8)}</TableCell>
+                    <TableCell>{o.userId.name}</TableCell>
+                    <TableCell>{getProductsSummary(o.products)}</TableCell>
+                    <TableCell>{formatCurrency(o.totalPrice ?? 0)}</TableCell>
+                    <TableCell>{getStatusBadge(o.status)}</TableCell>
+                    <TableCell>{formatDate(o.orderDate)}</TableCell>
+                    <TableCell>
+                      <Button
+                        onClick={() => handleEditOrder(o)}
+                        variant="outline"
+                        size="sm"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+
+            {totalPages > 1 && (
+              <div className="flex justify-between items-center mt-4">
+                <Button
+                  onClick={() => setCurrentPage(c => Math.max(c - 1, 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft /> Anterior
+                </Button>
+                <span>Página {currentPage} de {totalPages}</span>
+                <Button
+                  onClick={() => setCurrentPage(c => Math.min(c + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                >
+                  Siguiente <ChevronRight />
                 </Button>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {filteredOrders.length === 0 ? (
-              <div className="text-center py-8">
-                <ShoppingCart className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-                {searchTerm ? (
-                  <>
-                    <h3 className="text-lg font-semibold text-gray-700 mb-2">No se encontraron resultados</h3>
-                    <p className="text-gray-500 mb-4">No hay órdenes que coincidan con "{searchTerm}"</p>
-                    <Button onClick={() => setSearchTerm("")} variant="outline">
-                      Limpiar búsqueda
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <h3 className="text-lg font-semibold text-gray-700 mb-2">No hay órdenes registradas</h3>
-                    <p className="text-gray-500">Las órdenes aparecerán aquí una vez que se realicen compras.</p>
-                  </>
-                )}
-              </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[120px]">
-                          <div className="flex items-center space-x-2">
-                            <Hash className="h-4 w-4" />
-                            <span>ID Orden</span>
-                          </div>
-                        </TableHead>
-                        <TableHead>
-                          <div className="flex items-center space-x-2">
-                            <User className="h-4 w-4" />
-                            <span>Cliente</span>
-                          </div>
-                        </TableHead>
-                        <TableHead>
-                          <div className="flex items-center space-x-2">
-                            <Package className="h-4 w-4" />
-                            <span>Productos</span>
-                          </div>
-                        </TableHead>
-                        <TableHead>
-                          <div className="flex items-center space-x-2">
-                            <DollarSign className="h-4 w-4" />
-                            <span>Total</span>
-                          </div>
-                        </TableHead>
-                        <TableHead>Estado</TableHead>
-                        <TableHead>
-                          <div className="flex items-center space-x-2">
-                            <Calendar className="h-4 w-4" />
-                            <span>Fecha</span>
-                          </div>
-                        </TableHead>
-                        <TableHead>Acciones</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {currentOrders.map((order) => (
-                        <TableRow key={order._id} className="hover:bg-gray-50">
-                          <TableCell className="font-medium">
-                            <div className="flex flex-col">
-                              <span className="font-mono text-sm text-gray-900">#{order._id.slice(-8)}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <span className="font-semibold text-gray-900">{order.userId.name}</span>
-                              <span className="text-sm text-gray-500">{order.userId.email}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>{getProductsSummary(order.products)}</TableCell>
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <span className="font-semibold text-gray-900">{formatCurrency(order.totalPrice)}</span>
-                              <span className="text-xs text-gray-500">Subtotal: {formatCurrency(order.subtotal)}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>{getStatusBadge(order.status)}</TableCell>
-                          <TableCell>
-                            <span className="text-sm text-gray-700">{formatDate(order.orderDate)}</span>
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              onClick={() => handleEditOrder(order)}
-                              variant="outline"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                {/* Pagination Controls */}
-                {totalPages > 1 && (
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
-                    <div className="text-sm text-gray-600">
-                      Mostrando {startIndex + 1} a {Math.min(endIndex, filteredOrders.length)} de{" "}
-                      {filteredOrders.length} órdenes
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <Button onClick={goToPreviousPage} disabled={currentPage === 1} variant="outline" size="sm">
-                        <ChevronLeft className="h-4 w-4" />
-                        Anterior
-                      </Button>
-
-                      <div className="flex items-center space-x-1">
-                        {getPageNumbers().map((pageNum) => (
-                          <Button
-                            key={pageNum}
-                            onClick={() => goToPage(pageNum)}
-                            variant={currentPage === pageNum ? "default" : "outline"}
-                            size="sm"
-                            className="w-10"
-                          >
-                            {pageNum}
-                          </Button>
-                        ))}
-                      </div>
-
-                      <Button onClick={goToNextPage} disabled={currentPage === totalPages} variant="outline" size="sm">
-                        Siguiente
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </>
             )}
           </CardContent>
         </Card>
       </div>
-      <EditModal
-        isOpen={editModalOpen}
-        onClose={() => setEditModalOpen(false)}
-        onSave={handleSaveOrder}
-        data={selectedOrder}
-        type="order"
+
+      <CreateOrderModal
+        isOpen={showCreate}
+        onClose={() => setShowCreate(false)}
+        onSave={handleCreateOrder}
         availableProducts={availableProducts}
       />
+      {selectedOrder && (
+        <EditOrderModal
+          isOpen={showEdit}
+          onClose={() => setShowEdit(false)}
+          onSave={handleSaveOrder}
+          data={selectedOrder}
+          availableProducts={availableProducts}
+        />
+      )}
     </div>
   )
 }

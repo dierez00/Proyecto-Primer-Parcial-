@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, CheckCircle, AlertCircle, Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/auth/AuthContext"; // ✅ importa tu contexto
+import { useAuth } from "@/auth/AuthContext"; 
+import type { Role } from "@/components/types"; 
 
 
 
@@ -22,12 +23,6 @@ interface LoginErrors {
     email?: string;
     password?: string;
     general?: string;
-}
-
-interface Role {
-    _id: string;
-    name: string;
-    description?: string;    
 }
 
 interface LoginResponse {
@@ -113,7 +108,16 @@ export default function Login() {
                 throw new Error("Error al iniciar sesión");
             }
 
-            login(result.accessToken, result.user, formData.rememberMe);
+            if (!result.user) {
+                throw new Error("No se recibió información del usuario");
+            }
+            if (result.user) {
+                login(
+                    result.accessToken,
+                    { ...result.user, name: result.user.name ?? "", roles: result.user.roles ?? [] },
+                    formData.rememberMe
+                );
+            }
 
 
             setIsSuccess(true);
