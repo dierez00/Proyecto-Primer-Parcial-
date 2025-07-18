@@ -1,4 +1,4 @@
-import { JSX } from 'react';
+import type { JSX } from 'react';
 import OrdersTable from '../modules/order/OrderTable';
 import UserForm from '../modules/user/UserForm';
 import UsersTable from '../modules/user/UserTable';

@@ -1,9 +1,9 @@
+import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
-import JSX from 'react';
 
 interface ProtectedRouteProps {
-  children: JSX.Element;
+  children: React.ReactElement;
   allowedRoles: string[]; // ["admin", "editor"]
 }
 
