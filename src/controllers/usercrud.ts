@@ -1,98 +1,144 @@
-import { Request, Response } from "express";
-import { User } from "../models/User";
-import { Roles } from "../models/roles";
-import bcrypt from 'bcryptjs';
+// src/controllers/userController.ts
+import { RequestHandler } from "express";
+import { Types } from "mongoose";
+import bcrypt from "bcryptjs";
+import { User, IUser } from "../models/User";
+import { Roles, IRoles } from "../models/roles";
 
-export const getAllUsers = async (req: Request, res: Response) => {
-  const { userEmail } = req.query;
-  const userList = await User.find().populate("roles");
-  const userByEmail = await User.find({ status: true }); //Encontrar por una caracteristica en especial
-
-
-  console.log(userByEmail)
-  return res.json({ userList });
+// --- Interfaces ---
+interface GetAllUsersQuery {
+  userEmail?: string;
 }
 
-export const saveUsers = async (req: Request, res: Response) => {
-  try {
-    const { name, email, password, roles, phone } = req.body;
+interface SaveUserBody {
+  name: string;
+  email: string;
+  password: string;
+  roles: string[]; // tipos de rol (type) o IDs según tu diseño
+  phone: string;
+}
 
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+interface IdParam {
+  id: string;
+}
 
-    const newUser = new User({
-      name,
-      email,
-      password: hashedPassword,
-      roles, // ahora espera un array de ObjectIds
-      phone,
-      createDate: Date.now(),
-      status: true,
-    });
+interface UpdateUserBody {
+  name?: string;
+  password?: string;
+  roles?: string[]; // tipos de rol
+  phone?: string;
+}
 
-    const user = await newUser.save();
-    return res.json({ user });
-
-  } catch (error) {
-    console.log("Error al guardar el usuario:", error);
-    return res.status(426).json({ error });
-  }
-};
-
-
-export const updateUser = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { name, password, roles, phone } = req.body;
-
-    const user = await User.findById(id);
-    if (!user) {
-      return res.status(404).json({ message: 'Usuario no encontrado' });
+// GET /getUsers
+export const getAllUsers: RequestHandler<{}, { userList: IUser[] } | { message: string }> = 
+  async (req, res, next) => {
+    try {
+      const { userEmail } = req.query as GetAllUsersQuery;
+      let query = { status: true } as Record<string, any>;
+      if (userEmail) query.email = userEmail;
+      
+      const userList = await User.find(query).populate("roles");
+      res.json({ userList });
+    } catch (err) {
+      console.error("Error al obtener los usuarios:", err);
+      res.status(500).json({ message: "Error al obtener los usuarios" });
     }
+  };
 
-    if (name) user.name = name;
-    if (phone) user.phone = phone;
-    if (password) {
+// POST /users
+export const saveUsers: RequestHandler<{}, { user: IUser } | { message: string }, SaveUserBody> =
+  async (req, res, next) => {
+    try {
+      const { name, email, password, roles, phone } = req.body;
+      if (!name || !email || !password || !Array.isArray(roles) || roles.length === 0 || !phone) {
+        res.status(400).json({ message: "Faltan datos obligatorios o roles inválidos" });
+        return;
+      }
+
       const saltRounds = 10;
-      user.password = await bcrypt.hash(password, saltRounds);
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+      // Opcional: validar que los roles existen
+      const foundRoles: IRoles[] = await Roles.find({ type: { $in: roles } });
+      if (foundRoles.length !== roles.length) {
+        res.status(400).json({ message: "Algún rol proporcionado no existe" });
+        return;
+      }
+
+      const newUser = new User({
+        name,
+        email,
+        password: hashedPassword,
+        roles: foundRoles.map(r => r._id),
+        phone,
+        createDate: Date.now(),
+        status: true,
+      });
+      const user = await newUser.save();
+      res.status(201).json({ user });
+    } catch (err) {
+      console.error("Error al guardar el usuario:", err);
+      res.status(500).json({ message: "Error al guardar el usuario" });
     }
+  };
 
-    if (roles && roles.length > 0) {
-      const foundRoles = await Roles.find({ type: { $in: roles } });
-      user.roles = foundRoles.map((role: any) => role._id);
+// PUT /updateUser/:id
+export const updateUser: RequestHandler<IdParam, { user: IUser } | { message: string }, UpdateUserBody> =
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      if (!Types.ObjectId.isValid(id)) {
+        res.status(400).json({ message: "ID inválido" });
+        return;
+      }
+
+      const user = await User.findById(id);
+      if (!user) {
+        res.status(404).json({ message: "Usuario no encontrado" });
+        return;
+      }
+
+      const { name, password, roles, phone } = req.body;
+      if (name) user.name = name;
+      if (phone) user.phone = phone;
+      if (password) {
+        const saltRounds = 10;
+        user.password = await bcrypt.hash(password, saltRounds);
+      }
+      if (roles && roles.length > 0) {
+        const foundRoles: IRoles[] = await Roles.find({ type: { $in: roles } });
+        user.roles = foundRoles.map(r => r._id) as Types.ObjectId[];
+      }
+
+      const updatedUser = await user.save();
+      res.json({ user: updatedUser });
+    } catch (err) {
+      console.error("Error al actualizar el usuario:", err);
+      res.status(500).json({ message: "Error al actualizar el usuario" });
     }
+  };
 
-    const updatedUser = await user.save();
-    return res.json({ user: updatedUser });
-
-  } catch (error) {
-    console.error('Error al actualizar el usuario:', error);
-    return res.status(500).json({ error: 'Error al actualizar el usuario' });
-  }
-};
-
-
-export const deleteUser = async (req: Request, res: Response) => {
+// DELETE /deleteU/:id
+export const deleteUser: RequestHandler<IdParam> = async (req, res, next) => {
   try {
     const { id } = req.params;
+    if (!Types.ObjectId.isValid(id)) {
+      res.status(400).json({ message: "ID inválido" });
+      return;
+    }
 
     const deletedUser = await User.findByIdAndUpdate(
       id,
-      {
-        status: false,
-        deleteDate: new Date()
-      },
+      { status: false, deleteDate: new Date() },
       { new: true }
     );
-
     if (!deletedUser) {
-      return res.status(404).json({ error: 'Usuario no encontrado' });
+      res.status(404).json({ message: "Usuario no encontrado" });
+      return;
     }
-
-    return res.json({ message: 'Usuario desactivado', deletedUser });
-
-  } catch (error) {
-    console.log("Error en deleteUser: ", error);
-    return res.status(500).json({ error: 'Error al eliminar usuario' });
+    res.json({ message: "Usuario desactivado", deletedUser });
+  } catch (err) {
+    console.error("Error al eliminar el usuario:", err);
+    res.status(500).json({ message: "Error al eliminar el usuario" });
   }
 };

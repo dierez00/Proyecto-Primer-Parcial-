@@ -1,77 +1,110 @@
-import { Request, Response } from "express";
-import { Productos } from "../models/productos";
+// src/controllers/productos.ts
+import { RequestHandler } from "express";
+import { Types } from "mongoose";
+import { Productos, IProductos } from "../models/productos";
 
-export const getAllProducts = async (req: Request, res: Response) => {
-  try {
-    const products = await Productos.find();
-    return res.json({ products });
-  } catch (error) {
-    console.error("Error al obtener los productos:", error);
-    return res.status(500).json({ error: "Error al obtener los productos" });
-  }
-};
+// Interfaces para bodies y params
+interface CreateProductBody {
+  name: string;
+  price: number;
+  description?: string;
+  stock: number;
+}
 
-export const saveProduct = async (req: Request, res: Response) => {
-  try {
-    const { name, price, description, stock } = req.body;
+interface UpdateProductBody {
+  name?: string;
+  price?: number;
+  description?: string;
+  stock?: number;
+}
 
-    const newProduct = new Productos({
-      name,
-      price,
-      description,
-      stock,
-      createDate: Date.now(),
-      status: true,
-    });
+interface IdParam {
+  id: string;
+}
 
-    const product = await newProduct.save();
-    return res.json({ product });
-  } catch (error) {
-    console.error("Error al guardar el producto:", error);
-    return res.status(500).json({ error: "Error al guardar el producto" });
-  }
-};
-
-export const updateProduct = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { name, price, description, stock } = req.body;
-
-    const updatedProduct = await Productos.findByIdAndUpdate(
-      id,
-      { name, price, description, stock },
-      { new: true, runValidators: true }
-    );
-
-    if (!updatedProduct) {
-      return res.status(404).json({ error: "Producto no encontrado" });
+// GET /getProducts
+export const getAllProducts: RequestHandler<{}, { products: IProductos[] } | { error: string }> = 
+  async (_req, res, next) => {
+    try {
+      const products = await Productos.find();
+      res.json({ products });
+    } catch (err) {
+      console.error("Error al obtener los productos:", err);
+      res.status(500).json({ error: "Error al obtener los productos" });
     }
+  };
 
-    return res.json({ product: updatedProduct });
-  } catch (error) {
-    console.error("Error al actualizar el producto:", error);
-    return res.status(500).json({ error: "Error al actualizar el producto" });
-  }
-};
-
-export const deleteProduct = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-
-    const deletedProduct = await Productos.findByIdAndUpdate(
-      id,
-      { status: false },
-      { new: true }
-    );
-
-    if (!deletedProduct) {
-      return res.status(404).json({ error: "Producto no encontrado" });
+// POST /products
+export const saveProduct: RequestHandler<{}, { product: IProductos } | { error: string }, CreateProductBody> = 
+  async (req, res, next) => {
+    try {
+      const { name, price, description, stock } = req.body;
+      const newProduct = new Productos({
+        name,
+        price,
+        description,
+        stock,
+        createDate: Date.now(),
+        status: true,
+      });
+      const product = await newProduct.save();
+      res.status(201).json({ product });
+    } catch (err) {
+      console.error("Error al guardar el producto:", err);
+      res.status(500).json({ error: "Error al guardar el producto" });
     }
+  };
 
-    return res.json({ message: "Producto desactivado correctamente", product: deletedProduct });
-  } catch (error) {
-    console.error("Error al eliminar el producto:", error);
-    return res.status(500).json({ error: "Error al eliminar el producto" });
-  }
-};
+// PUT /updateProduct/:id
+export const updateProduct: RequestHandler<IdParam, { product: IProductos } | { error: string }, UpdateProductBody> = 
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      if (!Types.ObjectId.isValid(id)) {
+        res.status(400).json({ error: "ID inválido" });
+        return;
+      }
+      const updates = req.body;
+      const updatedProduct = await Productos.findByIdAndUpdate(
+        id,
+        updates,
+        { new: true, runValidators: true }
+      );
+      if (!updatedProduct) {
+        res.status(404).json({ error: "Producto no encontrado" });
+        return;
+      }
+      res.json({ product: updatedProduct });
+    } catch (err) {
+      console.error("Error al actualizar el producto:", err);
+      res.status(500).json({ error: "Error al actualizar el producto" });
+    }
+  };
 
+// DELETE /deleteProduct/:id
+export const deleteProduct: RequestHandler<IdParam, { message: string; product?: IProductos } | { error: string }> = 
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      if (!Types.ObjectId.isValid(id)) {
+        res.status(400).json({ error: "ID inválido" });
+        return;
+      }
+      const deletedProduct = await Productos.findByIdAndUpdate(
+        id,
+        { status: false },
+        { new: true }
+      );
+      if (!deletedProduct) {
+        res.status(404).json({ error: "Producto no encontrado" });
+        return;
+      }
+      res.json({
+        message: "Producto desactivado correctamente",
+        product: deletedProduct,
+      });
+    } catch (err) {
+      console.error("Error al eliminar el producto:", err);
+      res.status(500).json({ error: "Error al eliminar el producto" });
+    }
+  };

@@ -1,75 +1,88 @@
-import { Request, Response } from "express";
+// src/controllers/auth.controller.ts
+import { RequestHandler } from "express";
 import { generateAccessToken } from "../utils/generateToken";
 import { cache } from "../utils/cache";
 import dayjs from "dayjs";
 import { User } from "../models/User";
-import bcrypt from 'bcryptjs';
+import bcrypt from "bcryptjs";
 
-export const login = async (req: Request, res: Response) => {
-  try {
-    const { email, password } = req.body;
+// LOGIN
+export const login: RequestHandler<{}, any, { email: string; password: string }> =
+  async (req, res, next) => {
+    try {
+      const { email, password } = req.body;
+      // Validación básica
+      if (!email || !password) {
+        res.status(400).json({ message: "Email y contraseña son obligatorios" });
+        return;
+      }
 
-    // Buscamos al usuario y populamos los roles
-    const user = await User.findOne({ email }).populate("roles");
+      // Buscar al usuario y poblar roles
+      const user = await User.findOne({ email }).populate("roles");
+      if (!user) {
+        res.status(401).json({ message: "Credenciales incorrectas" });
+        return;
+      }
 
-    if (!user) {
-      return res.status(401).json({ message: "credenciales incorrectas" });
+      // Comparar contraseña
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        res.status(401).json({ message: "Credenciales incorrectas" });
+        return;
+      }
+
+      // Generar token y cachearlo
+      const accessToken = generateAccessToken(user.id);
+      cache.set(user.id, accessToken, 60 * 30);
+
+      // Responder con datos de usuario y token
+      res.json({
+        accessToken,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          roles: user.roles,
+        },
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+
+// OBTENER TIEMPO RESTANTE DEL TOKEN
+export const getTimeToken: RequestHandler<{}, any, {}, { userId?: string }> =
+  (req, res, next) => {
+    const userId = req.query.userId;
+    if (typeof userId !== "string") {
+      res.status(400).json({ message: "Parámetro 'userId' inválido o ausente" });
+      return;
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ message: "credenciales incorrectas" });
+    const ttl = cache.getTtl(userId);
+    if (!ttl) {
+      res.status(404).json({ message: "Token no existe" });
+      return;
     }
 
-    const accessToken = generateAccessToken(user.id);
-    cache.set(user.id, accessToken, 60 * 30);
+    const now = Date.now();
+    const timeToLife = Math.floor((ttl - now) / 1000);
+    const expTime = dayjs(ttl).format("HH:mm:ss");
 
-    return res.json({
-      accessToken,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        roles: user.roles, // ← ahora esto contiene objetos completos, no solo ObjectIds
-      },
-    });
+    res.json({ timeToLife, expTime });
+  };
 
-  } catch (error) {
-    console.error("Error en login:", error);
-    return res.status(500).json({ message: "Error en el servidor" });
-  }
-};
+// RENOVAR TIEMPO DEL TOKEN
+export const updateToken: RequestHandler<{ userId: string }> =
+  (req, res, next) => {
+    const { userId } = req.params;
+    const ttl = cache.getTtl(userId);
+    if (!ttl) {
+      res.status(404).json({ message: "Token no existe" });
+      return;
+    }
 
-
-export const getTimeToken = (req: Request, res: Response) => {
-  const { userId } = req.query;
-
-  if (typeof userId !== 'string') {
-    return res.status(400).json({ message: "Parámetro 'userId' inválido o ausente" });
-  }
-
-  const ttl = cache.getTtl(userId);
-  if (!ttl) {
-    return res.status(404).json({ message: "Token no existe" });
-  }
-
-  const now = Date.now();
-  const timeToLife = Math.floor((ttl - now) / 1000);
-  const expTime = dayjs(ttl).format("HH:mm:ss");
-
-  return res.json({ timeToLife, expTime });
-};
-
-export const updateToken = (req: Request, res: Response) => {
-  const { userId } = req.params;
-
-  const ttl = cache.getTtl(userId);
-  if (!ttl){
-    return res.status(404).json({ message: "Token no existe" });
-  }
-
-  const newTImeTll: number = 60 * 15;
-  cache.ttl(userId, newTImeTll);
-
-  return res.json({ message: "Token actualizado" });
-};
+    // Renovar a 15 minutos
+    cache.ttl(userId, 60 * 15);
+    res.json({ message: "Token actualizado" });
+  };
